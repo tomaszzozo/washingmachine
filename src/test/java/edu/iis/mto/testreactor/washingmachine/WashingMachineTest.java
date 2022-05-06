@@ -14,7 +14,8 @@ import static edu.iis.mto.testreactor.washingmachine.ErrorCode.*;
 import static edu.iis.mto.testreactor.washingmachine.Result.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WashingMachineTest {
@@ -28,7 +29,7 @@ class WashingMachineTest {
     private final Material irrelevantMaterial = Material.COTTON;
     private final double properWeight = 7d;
     private final Program standardProgram = Program.LONG;
-    private final ProgramConfiguration standardProgramConfig = createProgram(standardProgram, true);
+    private final ProgramConfiguration standardProgramConfig = createProgramWithSpin(standardProgram);
     private final LaundryBatch standardBatch = createBatch(irrelevantMaterial, properWeight);
     private final LaundryStatus successStatus = createStatus(NO_ERROR, SUCCESS, standardProgram);
 
@@ -39,14 +40,14 @@ class WashingMachineTest {
 
     @Test
     void standardUsage() {
-        LaundryStatus result = washingMachine.start(standardBatch, standardProgramConfig);
+        LaundryStatus result = standardWash();
         assertEquals(successStatus, result);
     }
 
 
     @Test
     void waterPumpAndEngineCallCheck() throws WaterPumpException, EngineException {
-        washingMachine.start(standardBatch, standardProgramConfig);
+        standardWash();
 
         InOrder callOrder = inOrder(waterPump, engine);
         callOrder.verify(waterPump).pour(properWeight);
@@ -78,8 +79,40 @@ class WashingMachineTest {
         }
     }
 
-    private ProgramConfiguration createProgram(Program program, boolean spin) {
-       return ProgramConfiguration.builder().withProgram(program).withSpin(spin).build();
+    @Test
+    void waterPumpPourFailure() throws WaterPumpException {
+        doThrow(new WaterPumpException()).when(waterPump).pour(any(Double.class));
+        LaundryStatus result = standardWash();
+        LaundryStatus expected = createStatus(WATER_PUMP_FAILURE, FAILURE, standardProgram);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void waterPumpReleaseFailure() throws WaterPumpException {
+        doThrow(new WaterPumpException()).when(waterPump).release();
+        LaundryStatus result = standardWash();
+        LaundryStatus expected = createStatus(WATER_PUMP_FAILURE, FAILURE, standardProgram);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void engineRunWashingFailure() throws EngineException {
+        doThrow(new EngineException()).when(engine).runWashing(any(Integer.class));
+        LaundryStatus result = standardWash();
+        LaundryStatus expected = createStatus(ENGINE_FAILURE, FAILURE, standardProgram);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void engineSpinFailure() throws EngineException {
+        doThrow(new EngineException()).when(engine).spin();
+        LaundryStatus result = standardWash();
+        LaundryStatus expected = createStatus(ENGINE_FAILURE, FAILURE, standardProgram);
+        assertEquals(expected, result);
+    }
+
+    private ProgramConfiguration createProgramWithSpin(Program program) {
+       return ProgramConfiguration.builder().withProgram(program).withSpin(true).build();
     }
 
     private LaundryBatch createBatch(Material material, double weightKg) {
@@ -90,4 +123,7 @@ class WashingMachineTest {
         return LaundryStatus.builder().withErrorCode(errorCode).withResult(result).withRunnedProgram(program).build();
     }
 
+    private LaundryStatus standardWash() {
+        return washingMachine.start(standardBatch, standardProgramConfig);
+    }
 }
