@@ -10,6 +10,7 @@ import static edu.iis.mto.testreactor.washingmachine.ErrorCode.*;
 import static edu.iis.mto.testreactor.washingmachine.Result.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class WashingMachineTest {
@@ -36,6 +37,25 @@ class WashingMachineTest {
         LaundryStatus result = washingMachine.start(laundryBatch, programConfiguration);
 
         assertEquals(result, createStatus(NO_ERROR, SUCCESS, staticProgram));
+    }
+
+
+    @Test
+    void waterPumpAndEngineCallCheck() throws WaterPumpException, EngineException
+    {
+        Material irrelevantMaterial = Material.COTTON;
+        double properWeight = 7d;
+        LaundryBatch laundryBatch = createBatch(irrelevantMaterial, properWeight);
+
+        Program staticProgram = Program.LONG;
+        ProgramConfiguration programConfiguration = createProgram(staticProgram, true);
+
+        washingMachine.start(laundryBatch, programConfiguration);
+
+        verify(waterPump).pour(properWeight);
+        verify(engine).runWashing(staticProgram.getTimeInMinutes());
+        verify(waterPump).release();
+        verify(engine).spin();
     }
 
     private ProgramConfiguration createProgram(Program program, boolean spin) {
