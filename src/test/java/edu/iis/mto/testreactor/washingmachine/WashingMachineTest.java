@@ -32,6 +32,7 @@ class WashingMachineTest {
     private final ProgramConfiguration standardProgramConfig = createProgramWithSpin(standardProgram);
     private final LaundryBatch standardBatch = createBatch(irrelevantMaterial, properWeight);
     private final LaundryStatus successStatus = createStatus(NO_ERROR, SUCCESS, standardProgram);
+    private final double averageDirtPercentage = 50d;
 
     @BeforeEach
     void setUp() {
@@ -108,6 +109,24 @@ class WashingMachineTest {
         doThrow(new EngineException()).when(engine).spin();
         LaundryStatus result = standardWash();
         LaundryStatus expected = createStatus(ENGINE_FAILURE, FAILURE, standardProgram);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void programDetection() {
+        ProgramConfiguration autodetectConfig = ProgramConfiguration.builder()
+                .withSpin(true)
+                .withProgram(Program.AUTODETECT)
+                .build();
+
+        when(dirtDetector.detectDirtDegree(any(LaundryBatch.class))).thenReturn(new Percentage(averageDirtPercentage+0.01));
+        LaundryStatus result = washingMachine.start(standardBatch, autodetectConfig);
+        LaundryStatus expected = createStatus(NO_ERROR, SUCCESS, Program.LONG);
+        assertEquals(expected, result);
+
+        when(dirtDetector.detectDirtDegree(any(LaundryBatch.class))).thenReturn(new Percentage(averageDirtPercentage));
+        result = washingMachine.start(standardBatch, autodetectConfig);
+        expected = createStatus(NO_ERROR, SUCCESS, Program.MEDIUM);
         assertEquals(expected, result);
     }
 
