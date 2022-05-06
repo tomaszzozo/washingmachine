@@ -6,6 +6,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static edu.iis.mto.testreactor.washingmachine.ErrorCode.*;
+import static edu.iis.mto.testreactor.washingmachine.Result.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,20 +26,28 @@ class WashingMachineTest {
 
     @Test
     void properBatchWithStaticProgram() {
-        LaundryBatch laundryBatch = LaundryBatch.builder()
-                .withMaterialType(Material.COTTON)
-                .withWeightKg(7d)
-                .build();
-        ProgramConfiguration programConfiguration = ProgramConfiguration.builder()
-                .withProgram(Program.LONG)
-                .withSpin(true)
-                .build();
+        Material irrelevantMaterial = Material.COTTON;
+        double properWeight = 7d;
+        LaundryBatch laundryBatch = createBatch(irrelevantMaterial, properWeight);
+
+        Program staticProgram = Program.LONG;
+        ProgramConfiguration programConfiguration = createProgram(staticProgram, true);
+
         LaundryStatus result = washingMachine.start(laundryBatch, programConfiguration);
-        assertEquals(result, LaundryStatus.builder()
-                .withErrorCode(ErrorCode.NO_ERROR)
-                .withResult(Result.SUCCESS)
-                .withRunnedProgram(Program.LONG)
-                .build());
+
+        assertEquals(result, createStatus(NO_ERROR, SUCCESS, staticProgram));
+    }
+
+    private ProgramConfiguration createProgram(Program program, boolean spin) {
+       return ProgramConfiguration.builder().withProgram(program).withSpin(spin).build();
+    }
+
+    private LaundryBatch createBatch(Material material, double weightKg) {
+        return LaundryBatch.builder().withMaterialType(material).withWeightKg(weightKg).build();
+    }
+
+    private LaundryStatus createStatus(ErrorCode errorCode, Result result, Program program) {
+        return LaundryStatus.builder().withErrorCode(errorCode).withResult(result).withRunnedProgram(program).build();
     }
 
 }
