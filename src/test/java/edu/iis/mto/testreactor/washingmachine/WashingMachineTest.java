@@ -7,9 +7,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 import static edu.iis.mto.testreactor.washingmachine.ErrorCode.*;
 import static edu.iis.mto.testreactor.washingmachine.Result.*;
 
@@ -32,7 +29,7 @@ class WashingMachineTest {
     private final ProgramConfiguration standardProgramConfig = createProgramWithSpin(standardProgram);
     private final LaundryBatch standardBatch = createBatch(irrelevantMaterial, properWeight);
     private final LaundryStatus successStatus = createStatus(NO_ERROR, SUCCESS, standardProgram);
-    private final double averageDirtPercentage = 50d;
+    private final LaundryStatus tooHeavyStatus = createStatus(TOO_HEAVY, FAILURE, null);
 
     @BeforeEach
     void setUp() {
@@ -58,26 +55,38 @@ class WashingMachineTest {
     }
 
     @Test
-    void tooHeavy() {
-        LaundryBatch woolenCorrectBatch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2 - 0.001);
-        LaundryBatch woolenIncorrectBatch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2);
-        LaundryBatch woolenHeavierIncorrectBatch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2 + 0.001);
-        LaundryBatch cottonCorrectBatch = createBatch(Material.COTTON, WashingMachine.MAX_WEIGTH_KG);
-        LaundryBatch cottonIncorrectBatch = createBatch(Material.COTTON, WashingMachine.MAX_WEIGTH_KG + 0.001);
-        LaundryStatus tooHeavyStatus = createStatus(TOO_HEAVY, FAILURE, null);
+    void tooHeavyWoolenCorrectBatch() {
+        LaundryBatch batch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2-0.001);
+        LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
+        assertEquals(successStatus, result);
+    }
 
-        ArrayList<LaundryBatch> incorrectBatches = new ArrayList<>(Arrays.asList(woolenIncorrectBatch,
-                woolenHeavierIncorrectBatch, cottonIncorrectBatch));
-        ArrayList<LaundryBatch> correctBatches = new ArrayList<>(Arrays.asList(cottonCorrectBatch, woolenCorrectBatch));
+    @Test
+    void tooHeavyWoolenIncorrectBatch() {
+        LaundryBatch batch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2);
+        LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
+        assertEquals(tooHeavyStatus, result);
+    }
 
-        for (LaundryBatch batch : incorrectBatches) {
-            LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
-            assertEquals(tooHeavyStatus, result);
-        }
-        for (LaundryBatch batch : correctBatches) {
-            LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
-            assertEquals(successStatus, result);
-        }
+    @Test
+    void tooHeavyWoolenMoreIncorrectBatch() {
+        LaundryBatch batch = createBatch(Material.WOOL, WashingMachine.MAX_WEIGTH_KG/2+0.001);
+        LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
+        assertEquals(tooHeavyStatus, result);
+    }
+
+    @Test
+    void tooHeavyCottonCorrectBatch() {
+        LaundryBatch batch = createBatch(Material.COTTON, WashingMachine.MAX_WEIGTH_KG);
+        LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
+        assertEquals(successStatus, result);
+    }
+
+    @Test
+    void tooHeavyCottonIncorrectBatch() {
+        LaundryBatch batch = createBatch(Material.COTTON, WashingMachine.MAX_WEIGTH_KG+0.001);
+        LaundryStatus result = washingMachine.start(batch, standardProgramConfig);
+        assertEquals(tooHeavyStatus, result);
     }
 
     @Test
@@ -119,7 +128,8 @@ class WashingMachineTest {
                 .withProgram(Program.AUTODETECT)
                 .build();
 
-        when(dirtDetector.detectDirtDegree(any(LaundryBatch.class))).thenReturn(new Percentage(averageDirtPercentage+0.01));
+        double averageDirtPercentage = 50d;
+        when(dirtDetector.detectDirtDegree(any(LaundryBatch.class))).thenReturn(new Percentage(averageDirtPercentage +0.01));
         LaundryStatus result = washingMachine.start(standardBatch, autodetectConfig);
         LaundryStatus expected = createStatus(NO_ERROR, SUCCESS, Program.LONG);
         assertEquals(expected, result);
